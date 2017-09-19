@@ -1,6 +1,7 @@
 ﻿namespace CodeDojo.CircuitBreaker.Tests
 {
     using System;
+    using System.Threading;
     using System.Threading.Tasks;
 
     using NUnit.Framework;
@@ -40,10 +41,11 @@
         [Test]
         public async Task OpeningCircuit()
         {
-            var breaker = new CircuitBreaker(() => Task.FromException(new Exception("Test")), 4, TimeSpan.FromSeconds(10));
+            var breaker = new CircuitBreaker(() => Task.FromException(new Exception("Test")), 3, TimeSpan.FromSeconds(10));
             await breaker.ExecuteAsync();
             await breaker.ExecuteAsync();
             await breaker.ExecuteAsync();
+            Assert.ThrowsAsync<AggregateException>(breaker.ExecuteAsync);
             Assert.ThrowsAsync<AggregateException>(breaker.ExecuteAsync);
         }
 
@@ -55,9 +57,31 @@
         /// - Single call failing resets some kind of timeout
         /// </summary>
         [Test]
-        public void HalfOpenedState()
+        public async Task HalfOpenedState()
         {
+            //var counter = 0;
+            var timeout = TimeSpan.FromMilliseconds(100);
+            var succeedCalls = new ManualResetEvent(false);
+            var breaker = new CircuitBreaker(
+                () =>
+                    {
+                        var shouldSucceed = succeedCalls.WaitOne(0);
+                        return shouldSucceed ? Task.CompletedTask : Task.FromException(new Exception("Test"));
+                    },
+                1,
+                timeout);
 
+            await breaker.ExecuteAsync(); //open the circuit
+            Assert.ThrowsAsync<AggregateException>(breaker.ExecuteAsync);
+
+            await Task.Delay(timeout); //wait for timeout, half-open circuit
+            succeedCalls.Set(); //make requests to success
+            await breaker.ExecuteAsync(); //close circuit
+            await breaker.ExecuteAsync();
+
+            succeedCalls.Reset(); //all requests fail again
+            await breaker.ExecuteAsync(); //open the circuit
+            Assert.ThrowsAsync<AggregateException>(breaker.ExecuteAsync);
         }
     }
 }

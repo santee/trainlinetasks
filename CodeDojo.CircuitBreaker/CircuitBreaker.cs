@@ -11,7 +11,7 @@
 
         private readonly Func<Task> protectedFunction;
 
-        private readonly int failuresThreshold;
+        private readonly int failuresAllowed;
 
         private readonly TimeSpan halfOpenTimeout;
         private readonly Stopwatch halfOpenTimer = new Stopwatch();
@@ -20,17 +20,17 @@
 
         public int FailureCounter => this.exceptions.Count;
 
-        public CircuitBreaker(Func<Task> protectedFunction, int failuresThreshold, TimeSpan halfOpenTimeout)
+        public CircuitBreaker(Func<Task> protectedFunction, int failuresAllowed, TimeSpan halfOpenTimeout)
         {
-            if (failuresThreshold <= 0)
+            if (failuresAllowed < 0)
             {
-                throw new ArgumentException("Failure threshold must be a positive number (1 for 'no failures allowed')", nameof(failuresThreshold));
+                throw new ArgumentException("Failure threshold must be a positive number (0 for 'no failures allowed')", nameof(failuresAllowed));
             }
 
             this.protectedFunction = protectedFunction;
-            this.failuresThreshold = failuresThreshold;
+            this.failuresAllowed = failuresAllowed;
             this.halfOpenTimeout = halfOpenTimeout;
-            this.exceptions = new List<Exception>(failuresThreshold);
+            this.exceptions = new List<Exception>(failuresAllowed);
         }
 
         public async Task ExecuteAsync()
@@ -68,7 +68,7 @@
                 return;
             }
 
-            if (this.exceptions.Count >= this.failuresThreshold)
+            if (this.exceptions.Count > this.failuresAllowed)
             {
                 throw new AggregateException(this.exceptions);
             }
