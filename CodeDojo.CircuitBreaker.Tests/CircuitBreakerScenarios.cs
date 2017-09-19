@@ -16,7 +16,7 @@
     ///    - Half-open timeouts should be configurable
     /// </summary>
     [TestFixture]
-    public class CircuitBreakerTests
+    public class CircuitBreakerScenarios
     {
 
         /// <summary>
@@ -25,7 +25,7 @@
         /// A failure count is incremented
         /// </summary>
         [Test]
-        public async Task MonitoringFailure()
+        public async Task Scenario1_MonitoringFailure()
         {
             var breaker = new CircuitBreaker(() => Task.FromException(new Exception("Test")), 4, TimeSpan.FromSeconds(10));
             using (breaker)
@@ -42,7 +42,7 @@
         /// All subsequent calls throw an exception and block the call
         /// </summary>
         [Test]
-        public async Task OpeningCircuit()
+        public async Task Scenario2_OpeningCircuit()
         {
             var breaker = new CircuitBreaker(() => Task.FromException(new Exception("Test")), 3, TimeSpan.FromSeconds(10));
             using (breaker)
@@ -63,7 +63,7 @@
         /// - Single call failing resets some kind of timeout
         /// </summary>
         [Test]
-        public async Task HalfOpenedState()
+        public async Task Scenario3_HalfOpenedState()
         {
             var timeout = TimeSpan.FromMilliseconds(100);
             using (var succeedCalls = new ManualResetEvent(false))
@@ -71,6 +71,7 @@
                 var breaker = new CircuitBreaker(
                     () =>
                         {
+                            // ReSharper disable once AccessToDisposedClosure
                             var shouldSucceed = succeedCalls.WaitOne(0);
                             return shouldSucceed ? Task.CompletedTask : Task.FromException(new Exception("Test"));
                         },
