@@ -3,10 +3,10 @@
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
-    using System.IO;
+    using System.Threading;
     using System.Threading.Tasks;
 
-    public class CircuitBreaker
+    public class CircuitBreaker : IDisposable
     {
 
         private readonly Func<Task> protectedFunction;
@@ -18,7 +18,9 @@
 
         private readonly List<Exception> exceptions;
 
-        public int FailureCounter => this.exceptions.Count;
+        private readonly SemaphoreSlim csExecution = new SemaphoreSlim(1, 1);
+
+        public int FailureCounter { get; private set; } = 0;
 
         public CircuitBreaker(Func<Task> protectedFunction, int failuresAllowed, TimeSpan halfOpenTimeout)
         {
@@ -35,28 +37,39 @@
 
         public async Task ExecuteAsync()
         {
-            this.ThrowIfCircuitOpen();
-
+            await this.csExecution.WaitAsync().ConfigureAwait(false);
             try
             {
-                await this.protectedFunction().ConfigureAwait(false);
-                this.CloseCircuit();
-            }
-            catch (Exception ex)
-            {
-                this.NoteErrorOccurrence(ex);
+
                 this.ThrowIfCircuitOpen();
+
+                try
+                {
+                    await this.protectedFunction().ConfigureAwait(false);
+                    this.CloseCircuit();
+                }
+                catch (Exception ex)
+                {
+                    this.NoteErrorOccurrence(ex);
+                    this.ThrowIfCircuitOpen();
+                }
+            }
+            finally
+            {
+                this.csExecution.Release();
             }
         }
 
         private void CloseCircuit()
         {
+            this.FailureCounter = 0;
             this.exceptions.Clear();
             this.halfOpenTimer.Reset();
         }
 
         private void NoteErrorOccurrence(Exception exception)
         {
+            this.FailureCounter++;
             this.exceptions.Add(exception);
             this.halfOpenTimer.Restart();
         }
@@ -72,6 +85,20 @@
             {
                 throw new AggregateException(this.exceptions);
             }
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                this.csExecution.Dispose();
+            }
+        }
+
+        public void Dispose()
+        {
+            this.Dispose(true);
+            GC.SuppressFinalize(this);
         }
     }
 }
