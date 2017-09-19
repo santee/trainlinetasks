@@ -1,5 +1,8 @@
 ﻿namespace CodeDojo.CircuitBreaker.Tests
 {
+    using System;
+    using System.Threading.Tasks;
+
     using NUnit.Framework;
 
     /// <summary>
@@ -12,7 +15,7 @@
     ///    - Half-open timeouts should be configurable
     /// </summary>
     [TestFixture]
-    public class CircuitBreaker
+    public class CircuitBreakerTests
     {
 
         /// <summary>
@@ -21,9 +24,12 @@
         /// A failure count is incremented
         /// </summary>
         [Test]
-        public void MonitoringFailure()
+        public async Task MonitoringFailure()
         {
-
+            var breaker = new CircuitBreaker(() => Task.FromException(new Exception("Test")), 4, TimeSpan.FromSeconds(10));
+            await breaker.ExecuteAsync();
+            await breaker.ExecuteAsync();
+            Assert.AreEqual(2, breaker.FailureCounter);
         }
 
         /// <summary>
@@ -32,9 +38,13 @@
         /// All subsequent calls throw an exception and block the call
         /// </summary>
         [Test]
-        public void OpeningCircuit()
+        public async Task OpeningCircuit()
         {
-            
+            var breaker = new CircuitBreaker(() => Task.FromException(new Exception("Test")), 4, TimeSpan.FromSeconds(10));
+            await breaker.ExecuteAsync();
+            await breaker.ExecuteAsync();
+            await breaker.ExecuteAsync();
+            Assert.ThrowsAsync<AggregateException>(breaker.ExecuteAsync);
         }
 
         /// <summary>

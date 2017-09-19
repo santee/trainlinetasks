@@ -8,12 +8,6 @@
 
     public class CircuitBreaker
     {
-        private enum CircuitState
-        {
-            Closed,
-            Open,
-            HalfOpen
-        }
 
         private readonly Func<Task> protectedFunction;
 
@@ -23,6 +17,8 @@
         private readonly Stopwatch halfOpenTimer = new Stopwatch();
 
         private readonly List<Exception> exceptions;
+
+        public int FailureCounter => this.exceptions.Count;
 
         public CircuitBreaker(Func<Task> protectedFunction, int failuresThreshold, TimeSpan halfOpenTimeout)
         {
