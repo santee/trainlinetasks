@@ -82,8 +82,9 @@
                     Assert.ThrowsAsync<AggregateException>(breaker.ExecuteAsync);
 
                     await Task.Delay(timeout); //wait for timeout, half-open circuit
-                    succeedCalls.Set(); //make requests to success
+                    succeedCalls.Set(); //make requests to succeed
                     await breaker.ExecuteAsync(); //close circuit
+                    Assert.AreEqual(0, breaker.FailureCounter);
                     await breaker.ExecuteAsync();
 
                     succeedCalls.Reset(); //all requests fail again
