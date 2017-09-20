@@ -8,7 +8,6 @@
 
     public class CircuitBreaker : IDisposable
     {
-
         private readonly Func<Task> protectedFunction;
 
         private readonly int failuresAllowed;
@@ -19,8 +18,6 @@
         private readonly List<Exception> exceptions;
 
         private readonly SemaphoreSlim csExecution = new SemaphoreSlim(1, 1);
-
-        public int FailureCounter { get; private set; } = 0;
 
         public CircuitBreaker(Func<Task> protectedFunction, int failuresAllowed, TimeSpan halfOpenTimeout)
         {
@@ -35,12 +32,13 @@
             this.exceptions = new List<Exception>(failuresAllowed);
         }
 
+        public int FailureCounter { get; private set; } = 0;
+
         public async Task ExecuteAsync()
         {
             await this.csExecution.WaitAsync().ConfigureAwait(false);
             try
             {
-
                 this.ThrowIfCircuitOpen();
 
                 try
@@ -57,6 +55,20 @@
             finally
             {
                 this.csExecution.Release();
+            }
+        }
+
+        public void Dispose()
+        {
+            this.Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                this.csExecution.Dispose();
             }
         }
 
@@ -85,20 +97,6 @@
             {
                 throw new AggregateException(this.exceptions);
             }
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                this.csExecution.Dispose();
-            }
-        }
-
-        public void Dispose()
-        {
-            this.Dispose(true);
-            GC.SuppressFinalize(this);
         }
     }
 }

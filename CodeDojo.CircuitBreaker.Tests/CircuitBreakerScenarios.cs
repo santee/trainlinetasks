@@ -10,7 +10,6 @@
     /// As a systems maintainer
     /// I want my calls to be resilient to failure
     /// So I don't need to turn features on and off
-
     /// - Implement the circuit breaker pattern
     ///    - Fault tolerance should be configurable
     ///    - Half-open timeouts should be configurable
@@ -18,7 +17,6 @@
     [TestFixture]
     public class CircuitBreakerScenarios
     {
-
         /// <summary>
         /// As a developer
         /// I want to count failures when I make calls
